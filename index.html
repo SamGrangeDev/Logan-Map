@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="stylesheet" href="./resources/ol.css">
+    <link rel="stylesheet" href="resources/fontawesome-all.min.css">
+    <link rel="stylesheet" href="./resources/ol-layerswitcher.css">
+    <link rel="stylesheet" href="./resources/qgis2web.css">
+    <style>
+        html, body {
+            background-color: #ffffff;
+        }
+        .ol-control > * {
+            background-color: #f8f8f8!important;
+            color: #444444!important;
+            border-radius: 0px;
+        }
+        .ol-attribution a, .gcd-gl-input::placeholder, .search-layer-input-search::placeholder {
+            color: #444444!important;
+        }
+        .search-layer-input-search {
+            background-color: #f8f8f8!important;
+        }
+        .ol-control > *:focus, .ol-control >*:hover {
+            background-color: rgba(248, 248, 248, 0.7)!important;
+        } 
+        .ol-control {
+            background-color: rgba(255,255,255,.4) !important;
+            padding: 2px !important;
+        }
+        #search-container, #dual-search-container {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            width: 350px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+        }
+        #dual-search-container {
+            width: 500px;
+            display: none;
+            gap: 10px;
+        }
+        #search-container input, #dual-search-container input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        #route-button {
+            padding: 8px 12px;
+            margin-left: 5px;
+            border: none;
+            background-color: #007BFF;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #route-button:hover {
+            background-color: #0056b3;
+        }
+        #destination-button {
+            padding: 8px 12px;
+            margin-left: 5px;
+            border: none;
+            background-color: #28a745;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #destination-button:hover {
+            background-color: #1e7e34;
+        }
+        #destination-button i {
+            pointer-events: none;
+        }
+        #eta-popup {
+            position: absolute;
+            background-color: white;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #cccccc;
+            min-width: 180px;
+            display: none;
+            z-index: 1000;
+        }
+        #eta-popup:after, #eta-popup:before {
+            border: solid transparent;
+            content: " ";
+            height: 0;
+            width: 0;
+            position: absolute;
+            pointer-events: none;
+            bottom: -15px;
+            left: 55%;
+            transform: translateX(-50%);
+        }
+        #eta-popup:after {
+            border-top-color: white;
+            border-width: 10px;
+        }
+        #eta-popup:before {
+            border-top-color: #cccccc;
+            border-width: 11px;
+        }
+        #eta-popup-closer {
+            text-decoration: none;
+            position: absolute;
+            top: 2px;
+            right: 8px;
+            font-weight: bold;
+            color: #aaa;
+        }
+        #eta-popup-closer:hover {
+            color: #000;
+        }
+        #eta-popup-content {
+            font-size: 14px;
+            color: #333;
+            line-height: 1.5;
+        }
+        #street-view-panorama {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 400px;
+            z-index: 1003;
+            background: #fff;
+            display: none;
+            border-top: 4px solid #FAF9F6;
+            box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        #close-street-view {
+            position: absolute;
+            bottom: 420px;
+            left: 10px;
+            z-index: 1004;
+            padding: 8px 12px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: none;
+        }
+        #close-street-view:hover {
+            background-color: #c82333;
+        }
+        #street-view-icon {
+            position: fixed !important;
+            top: 850px !important;
+            left: 20px !important;
+            z-index: 1002 !important;
+            cursor: grab !important;
+            width: 40px !important;
+            height: 40px !important;
+            transition: transform 0.03s ease;
+            transform: translate(0px, 0px);
+        }
+        #street-view-icon.dragging {
+            cursor: grabbing;
+            opacity: 0.8;
+        }
+        #gmap-coverage {
+            pointer-events: none;
+        }
+        #gmap-coverage .gm-style > div:first-child {
+            opacity: 0 !important;
+        }
+    </style>
+
+    <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+    </style>
+    <title>Logan Map</title>
+</head>
+<body>
+    <div id="map">
+        <div id="search-container">
+            <input type="text" id="address-input" placeholder="Enter address">
+            <button id="destination-button" title="Set Destination">
+                <i class="fas fa-map-marker-alt"></i>
+            </button>
+        </div>
+        <div id="dual-search-container">
+            <input type="text" id="origin-input" placeholder="Enter starting address">
+            <input type="text" id="destination-input" placeholder="Enter destination address">
+            <button id="route-button">Get Route</button>
+        </div>
+        <div id="popup" class="ol-popup">
+            <a href="#" id="popup-closer" class="ol-popup-closer"></a>
+            <div id="popup-content"></div>
+        </div>
+        <div id="eta-popup" class="ol-popup">
+            <a href="#" id="eta-popup-closer" class="ol-popup-closer"></a>
+            <div id="eta-popup-content"></div>
+        </div>
+    </div>
+    <div id="street-view-panorama" style="width: 100%; height: 720px; display: none; position: absolute; bottom: 0; left: 0; z-index: 1003;"></div>
+    <button id="close-street-view" style="position: absolute; bottom: 680px; left: 46%; z-index: 1004; display: none;">Close Street View</button>
+    <div id="street-view-icon" title="Drag to Street View" style="position: absolute; top: 850px; left: 25px; z-index: 1002; cursor: grab;">
+        <img src="streetview/pegman.png" alt="Street View" width="40" height="40">
+    </div>
+    <div id="gmap-coverage" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; display:none; z-index:999;"></div>
+    <script>
+        window.initMap = function() {
+            if (typeof google === 'undefined') {
+                console.error('Google Maps JavaScript API not loaded.');
+                return;
+            }
+            initAutocomplete();
+            initRouting();
+            if (typeof initStreetView === 'function' && typeof map !== 'undefined') {
+                initStreetView();
+            } else {
+                setTimeout(() => {
+                    if (typeof initStreetView === 'function' && typeof map !== 'undefined') {
+                        initStreetView();
+                    }
+                }, 1000);
+            }
+        }
+
+        function initAutocomplete() {
+            const addressInput = document.getElementById('address-input');
+            const originInput = document.getElementById('origin-input');
+            const destinationInput = document.getElementById('destination-input');
+
+            const autocompleteSingle = new google.maps.places.Autocomplete(addressInput, {
+                componentRestrictions: { country: 'au' }
+            });
+
+            autocompleteSingle.addListener('place_changed', function() {
+                const place = autocompleteSingle.getPlace();
+                if (!place.geometry) {
+                    alert("No details available for input: '" + place.name + "'");
+                    return;
+                }
+                const lat = place.geometry.location.lat();
+                const lng = place.geometry.location.lng();
+                const olCoord = ol.proj.fromLonLat([lng, lat]);
+                map.getView().animate({
+                    center: olCoord,
+                    zoom: 15.3,
+                    duration: 2000
+                });
+                addMarker(olCoord, place.formatted_address);
+            });
+
+            const autocompleteOrigin = new google.maps.places.Autocomplete(originInput, {
+                componentRestrictions: { country: 'au' }
+            });
+
+            const autocompleteDestination = new google.maps.places.Autocomplete(destinationInput, {
+                componentRestrictions: { country: 'au' }
+            });
+        }
+
+        function addMarker(coordinate, address) {
+            const existingMarker = map.getOverlayById('search-marker');
+            if (existingMarker) {
+                map.removeOverlay(existingMarker);
+            }
+            const markerElement = document.createElement('div');
+            markerElement.className = 'search-marker';
+            markerElement.innerHTML = `<i class="fas fa-map-marker-alt" style="color: #FF0000; font-size: 30px;"></i>`;
+            const markerOverlay = new ol.Overlay({
+                position: coordinate,
+                positioning: 'center-center',
+                element: markerElement,
+                stopEvent: false,
+                id: 'search-marker'
+            });
+            map.addOverlay(markerOverlay);
+        }
+
+        let directionsLayer, startMarker, endMarker, etaPopup, endPopup;
+
+        function initRouting() {
+            document.getElementById('route-button').addEventListener('click', function() {
+                const origin = document.getElementById('origin-input').value;
+                const destination = document.getElementById('destination-input').value;
+                if (!origin || !destination) {
+                    alert('Please enter both origin and destination addresses.');
+                    return;
+                }
+                const geocoder = new google.maps.Geocoder();
+                geocoder.geocode({ 'address': origin }, function(originResults, originStatus) {
+                    if (originStatus !== 'OK') {
+                        alert('Geocode was not successful for the origin: ' + originStatus);
+                        return;
+                    }
+                    const originLocation = originResults[0].geometry.location;
+                    geocoder.geocode({ 'address': destination }, function(destinationResults, destinationStatus) {
+                        if (destinationStatus !== 'OK') {
+                            alert('Geocode was not successful for the destination: ' + destinationStatus);
+                            return;
+                        }
+                        const destinationLocation = destinationResults[0].geometry.location;
+                        const directionsService = new google.maps.DirectionsService();
+                        directionsService.route({
+                            origin: originLocation,
+                            destination: destinationLocation,
+                            travelMode: 'DRIVING'
+                        }, function(response, status) {
+                            if (status === 'OK') {
+                                processDirections(response);
+                            } else {
+                                alert('Directions request failed due to ' + status);
+                            }
+                        });
+                    });
+                });
+            });
+        }
+
+        function processDirections(response) {
+            const route = response.routes[0].overview_polyline;
+            const path = google.maps.geometry.encoding.decodePath(route);
+            const olPath = path.map(function(latlng) {
+                return ol.proj.fromLonLat([latlng.lng(), latlng.lat()]);
+            });
+            if (directionsLayer) {
+                map.removeLayer(directionsLayer);
+            }
+            directionsLayer = new ol.layer.Vector({
+                source: new ol.source.Vector({
+                    features: [
+                        new ol.Feature({
+                            geometry: new ol.geom.LineString(olPath)
+                        })
+                    ]
+                }),
+                style: new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: '#00FFFF',
+                        width: 4
+                    })
+                })
+            });
+            map.addLayer(directionsLayer);
+            const legs = response.routes[0].legs;
+            let totalDistance = 0;
+            let totalDuration = 0;
+            legs.forEach(function(leg) {
+                totalDistance += leg.distance.value;
+                totalDuration += leg.duration.value;
+            });
+            const distanceKm = (totalDistance / 1000).toFixed(2);
+            const durationMin = Math.round(totalDuration / 60);
+            const etaInfoContent = `<strong>Route Information:</strong><br>Distance: ${distanceKm} km<br>ETA: ${durationMin} mins`;
+            document.getElementById('eta-popup-content').innerHTML = etaInfoContent;
+            const midpoint = olPath[Math.floor(olPath.length / 2)];
+            if (!etaPopup) {
+                etaPopup = new ol.Overlay({
+                    element: document.getElementById('eta-popup'),
+                    autoPan: { animation: { duration: 250 } },
+                });
+                map.addOverlay(etaPopup);
+            }
+            etaPopup.setPosition(midpoint);
+            document.getElementById('eta-popup').style.display = 'block';
+            document.getElementById('eta-popup-closer').onclick = function () {
+                etaPopup.setPosition(undefined);
+                document.getElementById('eta-popup').style.display = 'none';
+                return false;
+            };
+            const startLatLng = response.routes[0].legs[0].start_location;
+            const endLatLng = response.routes[0].legs[0].end_location;
+            const startPoint = ol.proj.fromLonLat([startLatLng.lng(), startLatLng.lat()]);
+            const endPoint = ol.proj.fromLonLat([endLatLng.lng(), endLatLng.lat()]);
+            if (startMarker) map.removeOverlay(startMarker);
+            startMarker = new ol.Overlay({
+                position: startPoint,
+                positioning: 'center-center',
+                element: document.createElement('div'),
+                stopEvent: false,
+            });
+            startMarker.getElement().style.width = '15px';
+            startMarker.getElement().style.height = '15px';
+            startMarker.getElement().style.borderRadius = '50%';
+            startMarker.getElement().style.backgroundColor = 'blue';
+            startMarker.getElement().style.border = '2px solid white';
+            map.addOverlay(startMarker);
+            if (endMarker) map.removeOverlay(endMarker);
+            endMarker = new ol.Overlay({
+                position: endPoint,
+                positioning: 'center-center',
+                element: document.createElement('div'),
+                stopEvent: false,
+            });
+            endMarker.getElement().style.width = '15px';
+            endMarker.getElement().style.height = '15px';
+            endMarker.getElement().style.borderRadius = '50%';
+            endMarker.getElement().style.backgroundColor = 'red';
+            endMarker.getElement().style.border = '2px solid white';
+            map.addOverlay(endMarker);
+            const extent = ol.extent.boundingExtent([startPoint, endPoint]);
+            map.getView().fit(extent, {
+                padding: [200, 200, 200, 200],
+                duration: 2000,
+            });
+            const endPopupContent = `<strong>Destination Address:</strong><br>${document.getElementById('destination-input').value}`;
+            if (endPopup) map.removeOverlay(endPopup);
+            endPopup = new ol.Overlay({
+                position: endPoint,
+                positioning: 'bottom-center',
+                element: document.createElement('div'),
+                stopEvent: false
+            });
+            endPopup.getElement().innerHTML = endPopupContent;
+            endPopup.getElement().style.backgroundColor = 'white';
+            endPopup.getElement().style.padding = '10px';
+            endPopup.getElement().style.borderRadius = '8px';
+            endPopup.getElement().style.border = '1px solid #cccccc';
+            endPopup.getElement().style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.3)';
+            endPopup.getElement().style.minWidth = '180px';
+            endPopup.getElement().style.textAlign = 'center';
+            endPopup.getElement().style.fontSize = '14px';
+            endPopup.getElement().style.marginBottom = '15px';
+            map.addOverlay(endPopup);
+        }
+
+        document.getElementById('destination-button').addEventListener('click', function() {
+            document.getElementById('search-container').style.display = 'none';
+            document.getElementById('dual-search-container').style.display = 'flex';
+        });
+
+        const closeButton = document.createElement('button');
+        closeButton.innerHTML = 'Close';
+        closeButton.style.marginLeft = '10px';
+        closeButton.style.padding = '8px 12px';
+        closeButton.style.border = 'none';
+        closeButton.style.backgroundColor = '#6c757d';
+        closeButton.style.color = 'white';
+        closeButton.style.borderRadius = '4px';
+        closeButton.style.cursor = 'pointer';
+        closeButton.style.fontSize = '14px';
+        closeButton.addEventListener('click', function() {
+            document.getElementById('dual-search-container').style.display = 'none';
+            document.getElementById('search-container').style.display = 'flex';
+            if (directionsLayer) {
+                map.removeLayer(directionsLayer);
+                directionsLayer = null;
+            }
+            if (startMarker) {
+                map.removeOverlay(startMarker);
+                startMarker = null;
+            }
+            if (endMarker) {
+                map.removeOverlay(endMarker);
+                endMarker = null;
+            }
+            if (etaPopup) {
+                etaPopup.setPosition(undefined);
+                document.getElementById('eta-popup').style.display = 'none';
+                etaPopup = null;
+            }
+            if (endPopup) {
+                map.removeOverlay(endPopup);
+                endPopup = null;
+            }
+        });
+        document.getElementById('dual-search-container').appendChild(closeButton);
+    </script>
+    <script loading="async" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC9b66RtsjMvLfvEoyH9VtxSnqnbRRfnfc&libraries=places,geometry&callback=initMap"></script>
+    <script src="resources/qgis2web_expressions.js"></script>
+    <script src="./resources/functions.js"></script>
+    <script src="./resources/ol.js"></script>
+    <script src="./resources/ol-layerswitcher.js"></script>
+    <script src="streetview/streetview.js"></script>
+    <script src="layers/SpecialisedCentre_2.js"></script><script src="layers/Rural_3.js"></script><script src="layers/SpecialPurpose_4.js"></script><script src="layers/RecreationandOpenSpace_5.js"></script><script src="layers/MediumImpactIndustry_6.js"></script><script src="layers/LowImpactIndustry_7.js"></script><script src="layers/CommunityFacilities_8.js"></script><script src="layers/EnvironmentalManagementandConservation_9.js"></script><script src="layers/Centre_10.js"></script><script src="layers/EmergingCommunity_11.js"></script><script src="layers/LowDensityResidential_12.js"></script><script src="layers/LowMediumDensityResidential_13.js"></script><script src="layers/PriorityDevelopmentArea_14.js"></script><script src="layers/MediumDensityResidential_15.js"></script><script src="layers/MixedUse_16.js"></script><script src="layers/RuralResidential_17.js"></script><script src="layers/PriorityDevelopmentArea_18.js"></script><script src="layers/Suburb_24.js"></script><script src="layers/LoganLGA_25.js"></script><script src="layers/Unzoned_26.js"></script><script src="layers/Rezone_27.js"></script><script src="layers/Zoned_28.js"></script>
+    <script src="styles/SpecialisedCentre_2_style.js"></script><script src="styles/Rural_3_style.js"></script><script src="styles/SpecialPurpose_4_style.js"></script><script src="styles/RecreationandOpenSpace_5_style.js"></script><script src="styles/MediumImpactIndustry_6_style.js"></script><script src="styles/LowImpactIndustry_7_style.js"></script><script src="styles/CommunityFacilities_8_style.js"></script><script src="styles/EnvironmentalManagementandConservation_9_style.js"></script><script src="styles/Centre_10_style.js"></script><script src="styles/EmergingCommunity_11_style.js"></script><script src="styles/LowDensityResidential_12_style.js"></script><script src="styles/LowMediumDensityResidential_13_style.js"></script><script src="styles/PriorityDevelopmentArea_14_style.js"></script><script src="styles/MediumDensityResidential_15_style.js"></script><script src="styles/MixedUse_16_style.js"></script><script src="styles/RuralResidential_17_style.js"></script><script src="styles/PriorityDevelopmentArea_18_style.js"></script><script src="styles/Suburb_24_style.js"></script><script src="styles/LoganLGA_25_style.js"></script><script src="styles/Unzoned_26_style.js"></script><script src="styles/Rezone_27_style.js"></script><script src="styles/Zoned_28_style.js"></script>
+    <script src="./layers/layers.js" type="text/javascript"></script> 
+    <script src="./resources/Autolinker.min.js"></script>
+    <script src="./resources/qgis2web.js"></script>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'93ae72262dccb063',t:'MTc0NjQyOTMxOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+</body>
+</html>
